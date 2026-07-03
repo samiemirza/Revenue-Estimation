@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kiryana Daily Revenue Estimator</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --panel: #f5f5f0;
+    --ink: #1a1a1a;
+    --muted: #5b5b55;
+    --line: #d8d8d0;
+    --accent: #2E86AB;
+    --accent-ink: #ffffff;
+    --flag-bg: #fff8dc;
+    --flag-border: #d4a017;
+    --good-bg: #d9efd6;
+    --good-ink: #1f5b1f;
+    --warn-bg: #ffe7b3;
+    --warn-ink: #7a4a00;
+    --bad-bg: #f5c8c8;
+    --bad-ink: #7a1f1f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.45;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
+  header { margin-bottom: 1.5rem; }
+  header h1 { margin: 0 0 0.35rem; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 0.95rem; max-width: 720px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  @media (min-width: 768px) {
+    .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem; }
+    .results-col { position: sticky; top: 1.5rem; align-self: start; max-height: calc(100vh - 3rem); overflow: auto; }
+  }
+
+  section.card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.1rem 1.15rem;
+    margin-bottom: 1rem;
+  }
+  section.card h2 {
+    margin: 0 0 0.85rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .field { margin-bottom: 0.85rem; }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .help {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 0.25rem;
+  }
+  input[type="number"], input[type="text"], select {
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #ffffff;
+    color: var(--ink);
+    font-size: 0.95rem;
+    font-family: inherit;
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  input[type="number"] { text-align: right; }
+  input[type="text"] { text-align: left; }
+  input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(46, 134, 171, 0.15);
+  }
+
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .seg label {
+    margin: 0;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.88rem;
+    cursor: pointer;
+    background: #fff;
+    border-right: 1px solid var(--line);
+    font-weight: 400;
+    transition: background 150ms;
+  }
+  .seg label:last-child { border-right: none; }
+  .seg input { display: none; }
+  .seg input:checked + span { color: var(--accent-ink); }
+  .seg label:has(input:checked) { background: var(--accent); color: var(--accent-ink); }
+
+  .baskets-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .baskets-row .field { margin: 0; }
+  .baskets-row label { font-size: 0.75rem; color: var(--muted); text-align: center; }
+
+  .inv-row {
+    display: grid;
+    grid-template-columns: 1.4fr 0.7fr 0.7fr 0.7fr;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .inv-row .field { margin: 0; }
+  .inv-row label { font-size: 0.75rem; color: var(--muted); }
+  .inv-row .h-only { display: block; }
+  .inv-row + .inv-row .h-only { display: none; }
+
+  details summary {
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: var(--accent);
+    padding: 0.25rem 0;
+    list-style: none;
+    user-select: none;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "+ "; font-weight: 600; }
+  details[open] summary::before { content: "− "; }
+  details[open] summary { margin-bottom: 0.75rem; }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  button {
+    font: inherit;
+    padding: 0.55rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 150ms, border-color 150ms, color 150ms;
+  }
+  button.primary { background: var(--accent); color: var(--accent-ink); }
+  button.primary:hover { background: #246d8c; }
+  button.secondary { background: #ffffff; color: var(--accent); border-color: var(--accent); }
+  button.secondary:hover { background: #eef5f9; }
+  button.tertiary { background: transparent; color: var(--muted); }
+  button.tertiary:hover { color: var(--ink); }
+
+  /* ----- Results ----- */
+  .results {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .results h2 {
+    margin: 0 0 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .headline {
+    font-size: 1.85rem;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
+  .range {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-top: 0.2rem;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--line);
+  }
+  .row .lab { color: var(--muted); font-size: 0.88rem; }
+  .row .val { font-weight: 500; }
+
+  .badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  .badge.good { background: var(--good-bg); color: var(--good-ink); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn-ink); }
+  .badge.bad  { background: var(--bad-bg);  color: var(--bad-ink); }
+
+  .pill {
+    display: inline-block;
+    padding: 0.18rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .pill.high  { background: var(--good-bg); color: var(--good-ink); }
+  .pill.med   { background: var(--warn-bg); color: var(--warn-ink); }
+  .pill.low   { background: var(--bad-bg);  color: var(--bad-ink); }
+
+  .assump {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--line);
+  }
+  .assump summary { color: var(--muted); }
+  .assump-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.88rem;
+  }
+  .assump-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.25rem 0;
+    color: var(--ink);
+    border-bottom: 1px dashed #e6e6dc;
+  }
+  .assump-list li:last-child { border-bottom: none; }
+  .assump-list .k { color: var(--muted); }
+  .assump-list .v { font-variant-numeric: tabular-nums; text-align: right; }
+
+  .flags-box {
+    margin-top: 1rem;
+    background: var(--flag-bg);
+    border: 1px solid var(--flag-border);
+    border-radius: 6px;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.88rem;
+    color: #5a4500;
+  }
+  .flags-box h3 {
+    margin: 0 0 0.35rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .flags-box ul { margin: 0; padding-left: 1.1rem; }
+  .flags-box li { margin: 0.2rem 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Kiryana Daily Revenue Estimator</h1>
+    <p>Fermi model trained on n=10 field visits in Lahore. Outputs are scenario bands, not predictions.</p>
+  </header>
+
+  <div class="grid">
+    <!-- ============== INPUTS ============== -->
+    <form id="form" autocomplete="off" onsubmit="event.preventDefault(); runEstimate();">
+      <section class="card">
+        <h2>Section A — Store</h2>
+        <div class="field">
+          <label>Store type</label>
+          <div class="seg" role="radiogroup" aria-label="Store type">
+            <label><input type="radio" name="store_type" value="pan shop"><span>pan shop</span></label>
+            <label><input type="radio" name="store_type" value="kiryana"><span>kiryana</span></label>
+            <label><input type="radio" name="store_type" value="mini mart" checked><span>mini mart</span></label>
+          </div>
+        </div>
+        <div class="field">
+          <label for="op_hours">Operating hours</label>
+          <input type="number" id="op_hours" min="0" step="0.5" placeholder="12">
+          <span class="help">From open to close. Leave 12 if unsure.</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Section B — Observation</h2>
+        <div class="field">
+          <label for="window_min">Window minutes</label>
+          <input type="number" id="window_min" min="1" step="1" value="15">
+        </div>
+        <div class="field">
+          <label for="txn_n">Transactions during window</label>
+          <input type="number" id="txn_n" min="0" step="1" placeholder="e.g. 14">
+        </div>
+        <div class="field">
+          <label for="daypart">Window time-of-day</label>
+          <select id="daypart">
+            <option>Morning</option>
+            <option>Midday</option>
+            <option>Afternoon</option>
+            <option selected>Evening</option>
+            <option>Night</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Observed basket values (PKR)</label>
+          <div class="baskets-row">
+            <div class="field"><label for="b1">#1</label><input type="number" id="b1" min="0" step="1" placeholder="PKR"></div>
+            <div class="field"><label for="b2">#2</label><input type="number" id="b2" min="0" step="1" placeholder="PKR"></div>
+            <div class="field"><label for="b3">#3</label><input type="number" id="b3" min="0" step="1" placeholder="PKR"></div>
+            <div class="field"><label for="b4">#4</label><input type="number" id="b4" min="0" step="1" placeholder="PKR"></div>
+            <div class="field"><label for="b5">#5</label><input type="number" id="b5" min="0" step="1" placeholder="PKR"></div>
+          </div>
+          <span class="help">Any can be blank. Need at least 3 to use observed basket.</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Section C — Interview</h2>
+        <div class="field">
+          <label for="bill_lo">Typical bill — low (PKR)</label>
+          <input type="number" id="bill_lo" min="0" step="1" placeholder="e.g. 100">
+        </div>
+        <div class="field">
+          <label for="bill_hi">Typical bill — high (PKR)</label>
+          <input type="number" id="bill_hi" min="0" step="1" placeholder="e.g. 1500">
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Section D — Inventory cross-check</h2>
+        <details id="inv-details">
+          <summary>Add inventory cross-check</summary>
+          <div id="inv-rows">
+            <div class="inv-row">
+              <div class="field"><label class="h-only">Item</label><input type="text" id="i1_name" placeholder="Item 1"></div>
+              <div class="field"><label class="h-only">Restock/day</label><input type="number" id="i1_freq" min="0" step="0.25" placeholder="freq"></div>
+              <div class="field"><label class="h-only">Qty/restock</label><input type="number" id="i1_qty" min="0" step="1" placeholder="qty"></div>
+              <div class="field"><label class="h-only">Price (PKR)</label><input type="number" id="i1_price" min="0" step="1" placeholder="PKR"></div>
+            </div>
+            <div class="inv-row">
+              <div class="field"><input type="text" id="i2_name" placeholder="Item 2"></div>
+              <div class="field"><input type="number" id="i2_freq" min="0" step="0.25" placeholder="freq"></div>
+              <div class="field"><input type="number" id="i2_qty" min="0" step="1" placeholder="qty"></div>
+              <div class="field"><input type="number" id="i2_price" min="0" step="1" placeholder="PKR"></div>
+            </div>
+            <div class="inv-row">
+              <div class="field"><input type="text" id="i3_name" placeholder="Item 3"></div>
+              <div class="field"><input type="number" id="i3_freq" min="0" step="0.25" placeholder="freq"></div>
+              <div class="field"><input type="number" id="i3_qty" min="0" step="1" placeholder="qty"></div>
+              <div class="field"><input type="number" id="i3_price" min="0" step="1" placeholder="PKR"></div>
+            </div>
+          </div>
+          <span class="help">Need at least 2 items with all three fields filled.</span>
+        </details>
+      </section>
+
+      <div class="actions">
+        <button type="submit" class="primary">Estimate</button>
+        <button type="button" class="secondary" onclick="loadExample()">Load example: MART03</button>
+        <button type="button" class="tertiary" onclick="resetForm()">Reset</button>
+      </div>
+    </form>
+
+    <!-- ============== RESULTS ============== -->
+    <div class="results-col">
+      <div class="results" id="results">
+        <h2>Estimated daily revenue</h2>
+        <div class="headline" id="headline">—</div>
+        <div class="range" id="range"></div>
+
+        <div class="row">
+          <span class="lab">Inventory cross-check</span>
+          <span class="val" id="inv-val">—</span>
+        </div>
+        <div class="row" style="margin-top:0; padding-top:0.5rem; border-top:none;">
+          <span class="lab">Triangulation</span>
+          <span id="tri-badge"></span>
+        </div>
+        <div class="row" style="margin-top:0; padding-top:0.5rem; border-top:none;">
+          <span class="lab">Confidence</span>
+          <span id="conf-pill"></span>
+        </div>
+
+        <details class="assump" open>
+          <summary>Assumptions used for this estimate</summary>
+          <ul class="assump-list" id="assump-list"></ul>
+        </details>
+
+        <div id="flags-wrap"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ===========================================================================
+// CONSTANTS — translated 1:1 from model.py
+// ===========================================================================
+const CONSTANTS = {
+  daypart_factor: {
+    Morning: 1.0, Midday: 0.9, Afternoon: 0.7,
+    Evening: 1.4, Night: 0.7, Late: 0.7,
+  },
+  txn_scenario_swing: 0.25,
+  basket_scenario_swing: 0.20,
+  basket_weight_observed: 0.6,
+  basket_weight_asked: 0.4,
+  top_sku_share: 0.60,
+  default_basket_by_type: {
+    "pan shop": 80.0,
+    "kiryana": 200.0,
+    "mini mart": 350.0,
+    "mart": 350.0,
+  },
+  sanity: {
+    daily_txn_min: 20, daily_txn_max: 2000,
+    basket_min: 20, basket_max: 1500,
+    revenue_min: 1000, revenue_max: 500000,
+  },
+  triangulation_agreement: [0.7, 1.4],
+};
+
+// ===========================================================================
+// estimate() — mirrors model.py's estimate() exactly
+// ===========================================================================
+function estimate(visit, C) {
+  C = C || CONSTANTS;
+  const flags = [];
+
+  // 1. Rate per hour from observation window
+  const txn_n = visit.transactions_n;
+  const window_min = visit.obs_window_minutes;
+  let rate_per_hr = null;
+  if (txn_n == null || window_min == null || window_min <= 0) {
+    flags.push("no_observation_window");
+  } else {
+    rate_per_hr = Number(txn_n) * (60.0 / Number(window_min));
+  }
+
+  // 2. Daypart adjustment
+  const daypart = visit.obs_daypart;
+  const dpf = C.daypart_factor;
+  let f;
+  if (daypart in dpf) {
+    f = dpf[daypart];
+  } else {
+    f = 1.0;
+    flags.push("unknown_daypart=" + daypart);
+  }
+  const daily_avg_rate = (rate_per_hr != null) ? rate_per_hr / f : null;
+
+  // 3. Operating hours (fall back to 12 if missing/<=0)
+  let op_hours = visit.operating_hours;
+  let op_hours_fallback = false;
+  if (op_hours == null || op_hours <= 0) {
+    flags.push("missing_operating_hours");
+    op_hours = 12.0;
+    op_hours_fallback = true;
+  }
+  if (op_hours > 20) {
+    flags.push("operating_hours_very_long=" + Number(op_hours).toFixed(1));
+  }
+
+  // 4. Daily transactions
+  let daily_txn;
+  if (daily_avg_rate != null) {
+    daily_txn = daily_avg_rate * Number(op_hours);
+  } else {
+    const cust_lo = visit.customers_per_day_est_low;
+    const cust_hi = visit.customers_per_day_est_high;
+    if (cust_lo != null && cust_hi != null) {
+      daily_txn = ((cust_lo + cust_hi) / 2) * 0.75;
+      flags.push("daily_txn_from_owner_estimate");
+    } else {
+      daily_txn = null;
+      flags.push("daily_txn_unavailable");
+    }
+  }
+  const sn = C.sanity;
+  if (daily_txn != null && !(sn.daily_txn_min <= daily_txn && daily_txn <= sn.daily_txn_max)) {
+    flags.push("daily_txn_out_of_bounds=" + Math.round(daily_txn));
+  }
+
+  // 5. Basket size
+  const baskets = (visit.basket_values_obs || []).filter(x => x != null && !isNaN(x)).map(Number);
+  const B_obs = (baskets.length >= 3) ? (baskets.reduce((a,b)=>a+b, 0) / baskets.length) : null;
+
+  const bill_lo = visit.bill_range_low;
+  const bill_hi = visit.bill_range_high;
+  let B_asked = null;
+  if (bill_lo != null && bill_hi != null) {
+    B_asked = (Number(bill_lo) + Number(bill_hi)) / 2;
+  }
+
+  const w_obs = C.basket_weight_observed;
+  const w_ask = C.basket_weight_asked;
+
+  let B_avg, basket_source;
+  if (B_obs != null && B_asked != null) {
+    B_avg = w_obs * B_obs + w_ask * B_asked;
+    basket_source = "blended";
+  } else if (B_obs != null) {
+    B_avg = B_obs;
+    basket_source = "observed_only";
+    flags.push("basket_observed_only");
+  } else if (B_asked != null) {
+    B_avg = B_asked;
+    basket_source = "asked_only";
+    flags.push("basket_asked_only");
+  } else {
+    const store_type = (visit.store_type || "").toLowerCase();
+    const def = C.default_basket_by_type;
+    B_avg = (store_type in def) ? def[store_type] : 200.0;
+    basket_source = "default_by_type";
+    flags.push("basket_default_used_type=" + store_type);
+  }
+  if (!(sn.basket_min <= B_avg && B_avg <= sn.basket_max)) {
+    flags.push("basket_out_of_bounds=" + Math.round(B_avg));
+  }
+
+  // 6. Base revenue
+  const R_base = (daily_txn != null) ? daily_txn * B_avg : null;
+
+  // 7. Scenario bands
+  const t_swing = C.txn_scenario_swing;
+  const b_swing = C.basket_scenario_swing;
+  const daily_txn_low  = (daily_txn != null) ? daily_txn * (1 - t_swing) : null;
+  const daily_txn_high = (daily_txn != null) ? daily_txn * (1 + t_swing) : null;
+
+  let B_low, B_high;
+  if (B_obs != null && B_asked != null && bill_lo != null && bill_hi != null) {
+    B_low  = Math.min(B_obs, Number(bill_lo));
+    B_high = Math.max(B_obs, Number(bill_hi));
+  } else {
+    B_low  = B_avg * (1 - b_swing);
+    B_high = B_avg * (1 + b_swing);
+  }
+
+  const R_low  = (R_base != null) ? daily_txn_low  * B_low  : null;
+  const R_high = (R_base != null) ? daily_txn_high * B_high : null;
+
+  if (R_base != null && !(sn.revenue_min <= R_base && R_base <= sn.revenue_max)) {
+    flags.push("revenue_out_of_bounds=" + Math.round(R_base));
+  }
+
+  // 8. Inventory cross-check
+  let R_top = 0.0;
+  let items_used = 0;
+  for (let i = 1; i <= 3; i++) {
+    const fr = visit["restock_freq_item_" + i];
+    const qt = visit["qty_per_restock_item_" + i];
+    const pr = visit["price_item_" + i];
+    if (fr != null && qt != null && pr != null) {
+      R_top += Number(fr) * Number(qt) * Number(pr);
+      items_used += 1;
+    }
+  }
+  let R_inv;
+  if (items_used >= 2) {
+    R_inv = R_top / C.top_sku_share;
+  } else {
+    R_inv = null;
+    flags.push("inventory_model_skipped_items_used=" + items_used);
+  }
+
+  // 9. Triangulation
+  let ratio = null;
+  if (R_base != null && R_inv != null && R_base > 0) {
+    ratio = R_inv / R_base;
+    const [lo, hi] = C.triangulation_agreement;
+    if (!(lo <= ratio && ratio <= hi)) {
+      flags.push("triangulation_disagree_ratio=" + ratio.toFixed(2));
+    }
+  }
+
+  return {
+    rate_per_hr_window: rate_per_hr,
+    daypart_factor_used: f,
+    operating_hours_used: op_hours,
+    operating_hours_fallback: op_hours_fallback,
+    daily_txn_est: daily_txn,
+    basket_source: basket_source,
+    B_obs: B_obs,
+    B_asked: B_asked,
+    avg_basket_est: B_avg,
+    bill_lo: bill_lo, bill_hi: bill_hi,
+    revenue_flow_low: R_low,
+    revenue_flow_base: R_base,
+    revenue_flow_high: R_high,
+    revenue_inventory_est: R_inv,
+    inventory_items_used: items_used,
+    triangulation_ratio: ratio,
+    flags: flags,
+    baskets_n: baskets.length,
+  };
+}
+
+// Expose for verification (Node can require this file via JSDOM, but easier:
+// we duplicate this same function in verify.js)
+if (typeof module !== "undefined") module.exports = { estimate, CONSTANTS };
+
+// ===========================================================================
+// UI
+// ===========================================================================
+function $(id) { return document.getElementById(id); }
+function fmtPKR(x) {
+  if (x == null || isNaN(x)) return "—";
+  return "PKR " + Math.round(x).toLocaleString("en-US");
+}
+
+function readForm() {
+  const num = id => {
+    const v = $(id).value;
+    if (v === "" || v == null) return null;
+    const n = Number(v);
+    return isNaN(n) ? null : n;
+  };
+  const txt = id => $(id).value || null;
+  const stype = document.querySelector('input[name="store_type"]:checked').value;
+  const baskets = [num("b1"), num("b2"), num("b3"), num("b4"), num("b5")].filter(x => x != null);
+
+  return {
+    store_type: stype,
+    operating_hours: num("op_hours"),
+    obs_window_minutes: num("window_min"),
+    transactions_n: num("txn_n"),
+    obs_daypart: $("daypart").value,
+    basket_values_obs: baskets,
+    bill_range_low: num("bill_lo"),
+    bill_range_high: num("bill_hi"),
+    restock_freq_item_1: num("i1_freq"),
+    qty_per_restock_item_1: num("i1_qty"),
+    price_item_1: num("i1_price"),
+    restock_freq_item_2: num("i2_freq"),
+    qty_per_restock_item_2: num("i2_qty"),
+    price_item_2: num("i2_price"),
+    restock_freq_item_3: num("i3_freq"),
+    qty_per_restock_item_3: num("i3_qty"),
+    price_item_3: num("i3_price"),
+  };
+}
+
+// Map machine flags to human sentences
+function humanizeFlag(flag, visit, res) {
+  if (flag.startsWith("basket_default_used_type=")) {
+    const t = flag.split("=")[1] || "unknown";
+    const def = CONSTANTS.default_basket_by_type[t];
+    return `Used fallback: basket from default for store type "${t}" (PKR ${def}).`;
+  }
+  if (flag.startsWith("daily_txn_out_of_bounds=")) {
+    const n = flag.split("=")[1];
+    const note = Number(n) < 20 ? "that's very low" : "that's very high";
+    return `Daily transactions out of expected range (${n} — ${note}).`;
+  }
+  if (flag.startsWith("basket_out_of_bounds=")) {
+    const n = flag.split("=")[1];
+    return `Average basket out of expected range (PKR ${Number(n).toLocaleString("en-US")}).`;
+  }
+  if (flag.startsWith("revenue_out_of_bounds=")) {
+    const n = flag.split("=")[1];
+    return `Daily revenue out of expected range (PKR ${Number(n).toLocaleString("en-US")}).`;
+  }
+  if (flag.startsWith("triangulation_disagree_ratio=")) {
+    const r = flag.split("=")[1];
+    const dir = Number(r) < 0.7 ? "below" : "above";
+    return `Triangulation disagrees: inventory model says ${r}× the flow estimate (${dir} the agreement band 0.7–1.4). Consider widening the band.`;
+  }
+  if (flag.startsWith("unknown_daypart=")) {
+    return `Unknown window time-of-day "${flag.split("=")[1]}" — using factor 1.0.`;
+  }
+  if (flag.startsWith("inventory_model_skipped_items_used=")) {
+    const n = flag.split("=")[1];
+    return `Inventory cross-check skipped: only ${n} item(s) had freq + qty + price filled (need 2).`;
+  }
+  if (flag === "missing_operating_hours") {
+    return "Operating hours not provided — assumed 12.";
+  }
+  if (flag === "no_observation_window") {
+    return "No observation window — could not compute transaction rate.";
+  }
+  if (flag === "daily_txn_unavailable") {
+    return "Could not estimate daily transactions (no window, no owner range).";
+  }
+  if (flag === "daily_txn_from_owner_estimate") {
+    return "Daily transactions estimated from owner's customer count (with 25% haircut).";
+  }
+  if (flag === "basket_observed_only") {
+    return "Bill range not provided — basket from observed values only.";
+  }
+  if (flag === "basket_asked_only") {
+    return "Fewer than 3 observed baskets — basket from owner's bill range only.";
+  }
+  if (flag.startsWith("operating_hours_very_long=")) {
+    return `Operating hours unusually long (${flag.split("=")[1]} hours).`;
+  }
+  return flag;
+}
+
+function confidenceLevel(visit, res) {
+  const baskets_n = (visit.basket_values_obs || []).length;
+  const has_bills = visit.bill_range_low != null && visit.bill_range_high != null;
+  const has_inv = res.revenue_inventory_est != null;
+  const tri_ok = res.triangulation_ratio != null
+    && res.triangulation_ratio >= CONSTANTS.triangulation_agreement[0]
+    && res.triangulation_ratio <= CONSTANTS.triangulation_agreement[1];
+  if (baskets_n >= 3 && has_bills && has_inv && tri_ok) return "high";
+  if (baskets_n >= 3 && (has_bills || has_inv)) return "medium";
+  return "low";
+}
+
+function renderAssumptions(visit, res) {
+  const list = $("assump-list");
+  const items = [];
+  items.push(["Daypart factor applied", `${res.daypart_factor_used} (${visit.obs_daypart})`]);
+  items.push(["Operating hours", `${res.operating_hours_used}${res.operating_hours_fallback ? " (default)" : ""}`]);
+  items.push(["Basket source", res.basket_source]);
+  items.push(["B_obs (observed mean)", res.B_obs == null ? "—" : `PKR ${Math.round(res.B_obs).toLocaleString("en-US")}`]);
+  items.push(["B_asked (owner range mid)", res.B_asked == null ? "—" : `PKR ${Math.round(res.B_asked).toLocaleString("en-US")}`]);
+  items.push(["B_avg (used)", `PKR ${Math.round(res.avg_basket_est).toLocaleString("en-US")}`]);
+  items.push(["Top-SKU share", "0.60"]);
+  items.push(["T swing", "±25%"]);
+  items.push(["B swing (when one source missing)", "±20%"]);
+  list.innerHTML = items.map(([k,v]) => `<li><span class="k">${k}</span><span class="v">${v}</span></li>`).join("");
+}
+
+function runEstimate() {
+  const visit = readForm();
+  const res = estimate(visit);
+
+  // Headline
+  $("headline").textContent = res.revenue_flow_base == null ? "—" : (fmtPKR(res.revenue_flow_base) + " / day");
+  $("range").textContent = (res.revenue_flow_low == null) ? "" :
+    `Range: ${fmtPKR(res.revenue_flow_low)} – ${fmtPKR(res.revenue_flow_high)}`;
+
+  // Inventory + triangulation
+  const invEl = $("inv-val");
+  const triEl = $("tri-badge");
+  if (res.revenue_inventory_est == null) {
+    invEl.textContent = "not available";
+    triEl.innerHTML = "";
+  } else {
+    invEl.textContent = fmtPKR(res.revenue_inventory_est);
+    if (res.triangulation_ratio != null) {
+      const r = res.triangulation_ratio;
+      const [lo, hi] = CONSTANTS.triangulation_agreement;
+      if (r >= lo && r <= hi) {
+        triEl.innerHTML = `<span class="badge good">✓ Agree (${r.toFixed(2)}×)</span>`;
+      } else {
+        triEl.innerHTML = `<span class="badge warn">⚠ Disagree (${r.toFixed(2)}×)</span>`;
+      }
+    } else {
+      triEl.innerHTML = "";
+    }
+  }
+
+  // Confidence
+  const c = confidenceLevel(visit, res);
+  const labels = { high: "High", medium: "Medium", low: "Low" };
+  const cls   = { high: "high", medium: "med", low: "low" };
+  $("conf-pill").innerHTML = `<span class="pill ${cls[c]}">${labels[c]}</span>`;
+
+  // Assumptions
+  renderAssumptions(visit, res);
+
+  // Flags
+  const wrap = $("flags-wrap");
+  const flagsToShow = res.flags.filter(f => f && f !== "basket_observed_only" || true); // show all
+  // Hide basket_observed_only / basket_asked_only when they're already obvious from "Basket source"
+  // Actually, keep them — the spec says "translate every machine flag to a human sentence".
+  if (res.flags.length === 0) {
+    wrap.innerHTML = "";
+  } else {
+    const items = res.flags.map(f => `<li>${humanizeFlag(f, visit, res)}</li>`).join("");
+    wrap.innerHTML = `<div class="flags-box"><h3>Flags</h3><ul>${items}</ul></div>`;
+  }
+}
+
+function loadExample() {
+  // MART03 from raw.csv (basket_1..basket_5 are 1000, 550, 250, 100, 450 — the
+  // first numeric on the row, 700, is customers_per_day_est, not basket_1).
+  document.querySelector('input[name="store_type"][value="mini mart"]').checked = true;
+  $("op_hours").value = 11;
+  $("window_min").value = 15;
+  $("txn_n").value = 14;
+  $("daypart").value = "Evening";
+  $("b1").value = 1000;
+  $("b2").value = 550;
+  $("b3").value = 250;
+  $("b4").value = 100;
+  $("b5").value = 450;
+  $("bill_lo").value = 100;
+  $("bill_hi").value = 1500;
+  $("i1_name").value = "Soft Drinks";
+  $("i1_freq").value = 1; $("i1_qty").value = 350; $("i1_price").value = 190;
+  $("i2_name").value = "Chips";
+  $("i2_freq").value = 1; $("i2_qty").value = 150; $("i2_price").value = 80;
+  $("i3_name").value = "Eggs (x12)";
+  $("i3_freq").value = 1; $("i3_qty").value = 30; $("i3_price").value = 340;
+  $("inv-details").open = true;
+  runEstimate();
+}
+
+function resetForm() {
+  $("form").reset();
+  document.querySelector('input[name="store_type"][value="mini mart"]').checked = true;
+  $("daypart").value = "Evening";
+  $("window_min").value = 15;
+  $("inv-details").open = false;
+  $("headline").textContent = "—";
+  $("range").textContent = "";
+  $("inv-val").textContent = "—";
+  $("tri-badge").innerHTML = "";
+  $("conf-pill").innerHTML = "";
+  $("assump-list").innerHTML = "";
+  $("flags-wrap").innerHTML = "";
+}
+
+// On load: pre-fill MART03 and estimate
+window.addEventListener("DOMContentLoaded", loadExample);
+</script>
+</body>
+</html>
