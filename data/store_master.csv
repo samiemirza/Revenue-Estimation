@@ -1,0 +1,11 @@
+store_id,area_name,income_proxy,store_type,store_size,location_type,store_age_years,n_visits
+KIR01,Gulberg,Middle,kiryana,Medium,"inner street, residential block, corner shop",5,1
+KIR02,DHA Phase 3,Upper-middle,kiryana,Medium,market strip,5,1
+KIR03,Johar Town,Middle,kiryana,Large,"inner street, market strip",10,1
+MART01,DHA Phase 5,Upper-middle,mini mart,Medium,"school area, residential block, corner shop",12,2
+MART02,DHA Phase 3,Upper-middle,mini mart,Medium,"office area, corner shop",10,1
+MART03,DHA Phase 5,Upper-middle,mini mart,Large,"main road, market strip, residential block",15,1
+MART04,Ichhra,Lower,mini mart,Large,"main road, market strip",16,1
+PAN01,Johar Town,Middle,pan shop,Small,"bus stop area, corner shop",8,1
+PAN02,Ichhra,Lower,pan shop,Small,"inner street, bus stop area",9,1
+PAN03,Model Town,Middle,pan shop,Small,"inner street, market strip, residential block",15,1
