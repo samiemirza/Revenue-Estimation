@@ -1,0 +1,7 @@
+perturbation,n_visits,median_abs_R_base_swing_pct,max_abs_R_base_swing_pct,max_swing_visit_id,median_abs_R_inv_swing_pct,max_abs_R_inv_swing_pct,n_triangulation_flips
+daypart_compressed,11,6.060606060606063,7.894736842105276,KIR02_4232026_80000PM,,,1
+daypart_steepened,11,5.405405405405403,9.375000000000034,KIR03_4222026_30000PM,,,0
+top_sku_share_0.50,11,,,,19.999999999999996,20.0,4
+top_sku_share_0.70,11,,,,14.285714285714285,14.285714285714295,0
+basket_weight_owner_heavy,11,10.400763358778626,13.34012219959268,KIR02_4232026_80000PM,,,0
+basket_weight_observation_heavy,11,10.400763358778626,13.34012219959266,KIR02_4232026_80000PM,,,1
